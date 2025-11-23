@@ -1,170 +1,369 @@
-# Proyecto Final — Multi‑APIs (Patients, Doctors, Appointments, Pharmacy)
+# SaludVital Cloud Platform
 
-Aplicación compuesta por **4 servicios** independientes. Cada servicio empaqueta **backend Express** y **frontend React/Vite** en **una sola imagen Docker**, sirviendo la **API** y la **SPA** desde el **mismo origen** (sin CORS).
-
-| Servicio | Descripción | Base de datos | Puerto local |
-|---|---|---|---|
-| `patients-api` | Gestión de pacientes | PostgreSQL | `http://localhost:4001` |
-| `doctors-api` | Gestión de médicos   | PostgreSQL | `http://localhost:4002` |
-| `appointments-api` | Citas (FK a pacientes y médicos) | PostgreSQL | `http://localhost:4003` |
-| `pharmacy-api` | Inventario y recetas | Azure Cosmos DB for MongoDB (RU) | `http://localhost:4004` |
+Plataforma web basada en microservicios para gestionar pacientes, médicos, citas e inventario/recetas de farmacia de la IPS simulada **SaludVital IPS**, desplegada en **Microsoft Azure**. 
 
 ---
 
-## 1) Requisitos
+## 1. Descripción del proyecto
 
-- **Docker** y **Docker Compose**.
-- Acceso a **PostgreSQL** (local, contenedor o administrado).
-- Acceso a **Cosmos DB for MongoDB** (o Mongo local para desarrollo).
-- **Node 18+** si deseas ejecutar sin Docker (opcional).
+**SaludVital Cloud Platform** busca apoyar la transformación digital de SaludVital IPS, permitiendo:
 
-### Variables de entorno (por servicio)
-- `PATIENTS_DATABASE_URL` (patients-api)
-- `DOCTORS_DATABASE_URL` (doctors-api)
-- `APPOINTMENTS_DATABASE_URL` (appointments-api)
-- `PHARMACY_MONGO_URI` (pharmacy-api)
-- `PORT` (cada backend expone su propio puerto; coincide con el `EXPOSE` del Dockerfile)
-
-> En producción (Azure App Service), define estas variables en **Configuration → Application settings**.
+* Registrar y gestionar pacientes y médicos.
+* Agendar, consultar, reprogramar y cancelar citas médicas.
+* Gestionar inventario de medicamentos y recetas.
+* Centralizar el acceso mediante un portal web con login y control de roles (paciente, médico, admin). 
 
 ---
 
-## 2) Puesta en marcha local (Docker Compose)
+## 2. Arquitectura y módulos
 
-1) **Base de datos**  
-   - PostgreSQL: crea los **schemas/tablas** con tu `schemas.sql` (puedes montarlo en `docker-entrypoint-initdb.d` o ejecutarlo manualmente).  
-   - Cosmos/Mongo: crea la BD y, si usas autoincremento en farmacia, inicializa la colección `counters`:
-     ```js
-     { "_id": "pharmacy_medicamentos", "seq": 0 }
-     { "_id": "pharmacy_recetas",      "seq": 0 }
+La solución está construida con una arquitectura de **microservicios**:
+
+* **Frontend**
+
+  * `login-client`: App React para autenticación de usuarios.
+  * `portal`: App React que muestra los módulos disponibles según el rol.
+* **API Gateway**
+
+  * `api-gateway`: Servicio Node.js/Express que centraliza las peticiones, valida el JWT y enruta a los microservicios.
+* **Microservicios backend**
+
+  * `patients-api`: CRUD de pacientes.
+  * `doctors-api`: CRUD de médicos.
+  * `appointments-api`: Gestión de citas médicas.
+  * `pharmacy-api`: Gestión de medicamentos y recetas (usa Mongo/Cosmos DB). 
+
+Cada microservicio se despliega en contenedores Docker y se expone a través del API Gateway.
+
+---
+
+## 3. Stack tecnológico
+
+### Frontend
+
+* **React + Vite** (portal y login).
+* Consumo de APIs REST usando `fetch` hacia el **API Gateway**.
+* Despliegue: **Azure App Service (Web App for Containers)**.
+
+### Backend
+
+* **Node.js + Express** para:
+
+  * `api-gateway`
+  * `patients-api`, `doctors-api`, `appointments-api`, `pharmacy-api`
+* APIs REST (GET, POST, PUT, DELETE) con JSON.
+
+### Autenticación y seguridad
+
+* **JWT (JSON Web Token)**:
+
+  * Generación de *access token* y *refresh token* en el login.
+  * El token incluye rol e identificador de usuario para controlar el acceso a módulos. 
+
+### Bases de datos
+
+* **PostgreSQL** (Azure Database for PostgreSQL):
+
+  * `patients-api`
+  * `doctors-api`
+  * `appointments-api`
+* **Azure Cosmos DB – API MongoDB**:
+
+  * `pharmacy-api` (inventario y recetas; colección `counters` para autoincrementar IDs). 
+
+### Infraestructura en la nube
+
+* **Nube**: Microsoft **Azure**.
+* **Docker** para empaquetar cada microservicio y frontend.
+* **Azure Container Registry (ACR)** para almacenar las imágenes.
+* **Azure App Service (Containers)** para desplegar las imágenes.
+* **GitHub Actions** para CI/CD:
+
+  * Build de imágenes.
+  * Push a ACR.
+  * Deploy a App Service. 
+
+---
+
+## 4. Requisitos previos
+
+Para ejecutar el proyecto localmente y/o desplegarlo:
+
+* **Node.js** >= 18.x
+* **npm** (o yarn)
+* **Docker** instalado y en ejecución
+* Cuenta en **Microsoft Azure** con:
+
+  * Azure Container Registry (ACR)
+  * Azure App Service para contenedores
+  * Azure Database for PostgreSQL
+  * Azure Cosmos DB (API MongoDB)
+
+---
+
+## 5. Estructura del repositorio (sugerida)
+
+> Ajusta los nombres según tu repo real si cambian.
+
+```text
+.
+├── api-gateway/
+├── patients-api/
+├── doctors-api/
+├── appointments-api/
+├── pharmacy-api/
+├── login-client/
+├── portal/
+└── README.md
+```
+
+Cada carpeta contiene un proyecto Node.js (para APIs/gateway) o React (para frontends).
+
+---
+
+## 6. Configuración de variables de entorno
+
+Cada servicio usa un archivo `.env` (no se debe subir al repositorio). A continuación, variables típicas (pueden variar según tu implementación):
+
+### 6.1. API Gateway (`api-gateway/.env`)
+
+```env
+PORT=4000
+
+JWT_SECRET=super_secreto
+JWT_EXPIRES_IN=1h
+REFRESH_TOKEN_SECRET=super_secreto_refresh
+REFRESH_TOKEN_EXPIRES_IN=7d
+
+PATIENTS_API_URL=http://localhost:4100
+DOCTORS_API_URL=http://localhost:4200
+APPOINTMENTS_API_URL=http://localhost:4300
+PHARMACY_API_URL=http://localhost:4400
+```
+
+### 6.2. Microservicios PostgreSQL
+
+`patients-api/.env` (similar para `doctors-api` y `appointments-api`):
+
+```env
+PORT=4100
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=tu_password
+DB_NAME=saludvital_patients
+```
+
+### 6.3. pharmacy-api (Cosmos DB / MongoDB)
+
+`pharmacy-api/.env`:
+
+```env
+PORT=4400
+
+MONGO_URI=mongodb://usuario:password@host:puerto
+MONGO_DB_NAME=saludvital_pharmacy
+```
+
+### 6.4. Frontends (`login-client/.env`, `portal/.env`)
+
+Para Vite normalmente:
+
+```env
+VITE_API_BASE=http://localhost:4000
+```
+
+En Azure, `VITE_API_BASE` debe apuntar a la URL pública del **API Gateway**.
+
+---
+
+## 7. Ejecución local (sin Docker)
+
+### 7.1. Clonar el repositorio
+
+```bash
+git clone https://github.com/<tu-usuario>/<tu-repo>.git
+cd <tu-repo>
+```
+
+### 7.2. Instalar dependencias backend
+
+En cada carpeta de backend:
+
+```bash
+cd api-gateway
+npm install
+cd ../patients-api
+npm install
+cd ../doctors-api
+npm install
+cd ../appointments-api
+npm install
+cd ../pharmacy-api
+npm install
+```
+
+### 7.3. Instalar dependencias frontend
+
+```bash
+cd ../login-client
+npm install
+cd ../portal
+npm install
+```
+
+### 7.4. Iniciar bases de datos (local)
+
+* Crear una instancia de **PostgreSQL** local (o usar una remota) y crear las bases necesarias.
+* Crear una instancia de **MongoDB** local (o usar Cosmos DB) y configurar la `MONGO_URI`.
+
+Actualiza las variables de entorno de cada API con tus credenciales/conexiones.
+
+### 7.5. Levantar los servicios backend
+
+En terminales diferentes (o usando herramientas como `concurrently`):
+
+```bash
+# API Gateway
+cd api-gateway
+npm run dev  # o npm start
+
+# Patients API
+cd ../patients-api
+npm run dev
+
+# Doctors API
+cd ../doctors-api
+npm run dev
+
+# Appointments API
+cd ../appointments-api
+npm run dev
+
+# Pharmacy API
+cd ../pharmacy-api
+npm run dev
+```
+
+### 7.6. Levantar los frontends
+
+```bash
+# Login
+cd ../login-client
+npm run dev
+
+# Portal
+cd ../portal
+npm run dev
+```
+
+### 7.7. Acceso a la aplicación
+
+1. Abrir el **login** en el navegador (por ejemplo, `http://localhost:5173` o el puerto que configure Vite).
+2. Iniciar sesión con un usuario válido.
+3. El sistema redirige al **portal**, que consume el **API Gateway** y muestra los módulos según el rol.
+
+---
+
+## 8. Ejecución con Docker (local / pruebas)
+
+> Si ya tienes Dockerfiles en cada servicio, puedes construir y correr contenedores.
+
+### 8.1. Construir imágenes
+
+Desde la raíz del repo (o dentro de cada carpeta):
+
+```bash
+# Ejemplo para api-gateway
+cd api-gateway
+docker build -t saludvital/api-gateway .
+
+# Repetir para cada servicio y frontend
+```
+
+### 8.2. Ejecutar contenedores
+
+```bash
+docker run -d --name api-gateway -p 4000:4000 --env-file .env saludvital/api-gateway
+# Repetir para cada microservicio y frontend, mapeando puertos y .env correspondientes
+```
+
+> Opcionalmente, puedes crear un `docker-compose.yml` para orquestar todos los servicios.
+
+---
+
+## 9. Despliegue en Microsoft Azure (alto nivel)
+
+1. **Crear Azure Container Registry (ACR)**
+
+   * Crear un registro (ej. `acrsaludvital.azurecr.io`).
+   * Hacer login desde GitHub Actions / local.
+
+2. **Build & push de imágenes a ACR**
+
+   * En GitHub Actions (workflows) o local:
+
+     ```bash
+     docker build -t acrsaludvital.azurecr.io/api-gateway:latest ./api-gateway
+     docker push acrsaludvital.azurecr.io/api-gateway:latest
      ```
+   * Repetir para cada API y frontend.
 
-2) **Levanta los servicios**  
-   Desde la raíz del repo:
-   ```bash
-   docker compose up --build
-   ```
-   Accede a:
-   - Pacientes → `http://localhost:4001`
-   - Doctores  → `http://localhost:4002`
-   - Citas     → `http://localhost:4003`
-   - Farmacia  → `http://localhost:4004`
+3. **Crear Azure App Service para contenedores**
 
-> Cada frontend incluye en el *header* campos para **API Base** (propia) y, donde aplica, **Pacientes API** y **Doctores API**. Las URLs se guardan en `localStorage` y los selectores (pacientes/doctores) se **cargan automáticamente** al abrir.
+   * Uno por cada servicio (gateway, microservicios, login, portal) o los que definas.
+   * Configurar la imagen de contenedor correspondiente (desde ACR).
 
----
+4. **Configurar variables de entorno en App Service**
 
-## 3) Cómo usar los frontends
+   * Definir todas las variables `.env` de cada servicio en la sección **Configuration**.
+   * En el API Gateway, usar las URL **internas o públicas** de cada microservicio en Azure.
 
-### 3.1 Pacientes
-- Registrar paciente (nombres, apellidos, documento, correo, teléfono, etc.).
-- Tabla con **buscar**, **editar** y **eliminar**.  
-- `id` autoincremental (PostgreSQL).
+5. **Configurar bases de datos en Azure**
 
-### 3.2 Doctores
-- Registrar médico (nombre completo, especialidad, correo, teléfono, **activo**).
-- Tabla con **buscar**, **editar**/**eliminar**.  
-- `id` autoincremental (PostgreSQL).
+   * Crear **Azure Database for PostgreSQL** y configurar:
 
-### 3.3 Citas
-- Formulario con **Paciente** y **Médico** (selects cargados desde las APIs de pacientes/doctores).
-- Fechas **inicio/fin**, **motivo** y **estado** (`programada`, `reprogramada`, `cancelada`, `hecha`).
-- Listado con filtros por paciente/médico/estado y rango de fechas.  
-- `id` autoincremental (PostgreSQL).
+     * Host, puerto, usuario, contraseña y nombres de BD en las variables de entorno de `patients-api`, `doctors-api`, `appointments-api`.
+   * Crear **Azure Cosmos DB – API MongoDB** y configurar `MONGO_URI` y `MONGO_DB_NAME` en `pharmacy-api`.
 
-### 3.4 Farmacia
-- Registrar medicamento (**nombre, SKU, precio, unidad, stock**).
-- Inventario con búsqueda, **ajuste rápido de stock** (+1/-1), editar y eliminar.
-- Crear receta:
-  - **Paciente** y **Médico** (selects externos).
-  - **Medicamento** (select del inventario; se muestra el stock).
-  - Agregar múltiples ítems `{ medicina_id, cantidad }` y confirmar.  
-- En Mongo, cada documento tiene `_id` (ObjectId) y un `id` **numérico** de negocio (autoincremental por colección usando `counters`).
+6. **Automatizar con GitHub Actions**
+
+   * El repositorio puede incluir workflows de CI/CD que:
+
+     * Compilen y construyan imágenes Docker.
+     * Hagan push a ACR.
+     * Desplieguen automáticamente al App Service correspondiente.
 
 ---
 
-## 4) Llamadas de API (ejemplos)
+## 10. Uso básico de la aplicación en producción
 
-> Sustituye por tus URLs (local o Azure).
+1. Ingresar a la URL pública del **login** (App Service del login).
+2. Autenticarse con un usuario válido.
+3. Una vez dentro del **portal**, navegar entre:
 
-### Pacientes
-```bash
-# Crear
-curl -X POST http://localhost:4001/patients \
-  -H "Content-Type: application/json" \
-  -d '{"nombres":"Ana","apellidos":"López","documento":"CC-123","correo":"ana@demo.com"}'
-
-# Listar
-curl http://localhost:4001/patients
-```
-
-### Doctores
-```bash
-curl -X POST http://localhost:4002/doctors \
-  -H "Content-Type: application/json" \
-  -d '{"nombre_completo":"Dr. Juan","especialidad":"General","correo":"juan@doctor.com","telefono":"300...","activo":true}'
-```
-
-### Citas
-```bash
-curl -X POST http://localhost:4003/appointments \
-  -H "Content-Type: application/json" \
-  -d '{"paciente_id":1,"medico_id":1,"inicio":"2025-11-02T01:00:00Z","fin":"2025-11-02T02:00:00Z","motivo":"General","estado":"programada"}'
-```
-
-### Farmacia (inventario y recetas)
-```bash
-# Crear medicamento
-curl -X POST http://localhost:4004/medicines \
-  -H "Content-Type: application/json" \
-  -d '{"nombre":"Paracetamol","sku":"PARA-500","precio":2.5,"unidad":"und","stock":10}'
-
-# Crear receta (nota: medicina_id es el _id de Mongo del medicamento)
-curl -X POST http://localhost:4004/prescriptions \
-  -H "Content-Type: application/json" \
-  -d '{"paciente_id":1,"medico_id":1,"items":[{"medicina_id":"<ObjectId>","cantidad":2}],"notas":"Tomar cada 8h"}'
-```
+   * **Pacientes**: CRUD de pacientes.
+   * **Médicos**: CRUD de médicos.
+   * **Citas**: crear, reprogramar, cancelar, listar.
+   * **Farmacia**: inventario de medicamentos y recetas asociadas a pacientes. 
 
 ---
 
-## 5) Despliegue en Azure (resumen)
+## 11. Limitaciones actuales (deuda técnica resumida)
 
-### 5.1 ACR + Web App for Containers
-1. Construye y publica las imágenes en tu **Azure Container Registry (ACR)**.  
-2. Crea una **Web App** por servicio y configura:
-   - **Image source** → tu ACR (`<acr>.azurecr.io/<servicio>:latest`).
-   - **Application settings** (variables): `*_DATABASE_URL` / `PHARMACY_MONGO_URI`, `PORT`, etc.
-   - Opcional: `WEBSITES_PORT` con el puerto del contenedor (si lo requiere el plan).
-   - **Always On** y **Container logging** para diagnóstico.
-
-### 5.2 CI/CD con GitHub Actions
-- El workflow `deploy.yml` construye y hace *push* a ACR (tags `latest` + `short-sha`).  
-- Si usas **dos ACRs**, el job selecciona el registro según el servicio (matrix) con secretos `ACR_LOGIN_SERVER/USERNAME/PASSWORD` y sus variantes `*2`.
+* No se han implementado conectores **RIPS** y **MIPRES**.
+* No existe aún una **historia clínica electrónica completa** (EHR) ni módulo PQRS.
+* Faltan mecanismos avanzados de seguridad (SSO Entra ID, private endpoints) y observabilidad extendida (trazas distribuidas, SLO/SLA formales).
+* Pruebas automatizadas aún pueden ampliarse (unitarias, integración, contrato entre microservicios). 
 
 ---
 
-## 6) Estructura por servicio
+## 12. Autores
 
-```
-<servicio>/
-├─ frontend/
-│  ├─ src/                 # React/Vite
-│  ├─ package.json
-│  └─ vite.config.js
-├─ src/
-│  ├─ app.js               # Express (API + estáticos)
-│  └─ db.js                # Conexión a PostgreSQL/Mongo
-├─ Dockerfile              # Multi-stage (build Vite → sirve Express)
-└─ package.json            # Backend
-```
-
----
-
-## 7) Problemas comunes (FAQ)
-
-- **500/errores DB**: verifica la URL de la base y que existan los esquemas/tablas.
-- **No cargan selects de pacientes/doctores**: revisa las **URLs** en el header y pulsa **Guardar bases** (se guardan en `localStorage`). En Citas y Farmacia la carga es automática al abrir.
-- **Mongo `CastError` con `_id`**: usa `id` numérico para visualización/búsqueda de negocio; `_id` es ObjectId.
-- **CORS**: no aplica (API y SPA comparten origen). Si separas dominios, habilita `cors` en Express y define `origin`.
+* Jean Paul Solano
+* Obrian Steven Sanchez
+* Deyvid Santiago Galarza
+* Andrés Felipe Cardoso
 
 ---
