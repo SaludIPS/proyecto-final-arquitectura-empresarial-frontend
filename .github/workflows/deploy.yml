@@ -1,0 +1,63 @@
+name: Frontend | Build & Deploy to Azure Web App (portal + login)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    # Dos targets: portal (raíz) y login-client (subcarpeta)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: portal
+            context: .
+            image: front-app
+            webapp: front-proyecto-final-desarrollo
+          - name: login
+            context: ./login-client
+            image: front-app2
+            webapp: front-proyecto-final-desarrollo2
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🔑 Login to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: 🏷️ Short SHA
+        id: vars
+        run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      # Build & push de cada target de la matrix
+      - name: 🏗️ Build & Push ${{ matrix.name }}
+        run: |
+          ACR="${{ secrets.ACR_LOGIN_SERVER }}"
+          IMG="${{ matrix.image }}"
+          TAG="${{ steps.vars.outputs.TAG }}"
+
+          docker build ${{ matrix.context }} \
+            -t $ACR/$IMG:$TAG \
+            -t $ACR/$IMG:latest \
+            --build-arg VITE_PHARMACY_API="${{ secrets.VITE_PHARMACY_API }}" \
+            --build-arg VITE_APPOINTMENTS_API="${{ secrets.VITE_APPOINTMENTS_API }}" \
+            --build-arg VITE_PATIENTS_API="${{ secrets.VITE_PATIENTS_API }}" \
+            --build-arg VITE_DOCTORS_API="${{ secrets.VITE_DOCTORS_API }}" \
+            --build-arg VITE_GATEWAY="${{ secrets.VITE_GATEWAY }}"
+
+          docker push $ACR/$IMG:$TAG
+          docker push $ACR/$IMG:latest

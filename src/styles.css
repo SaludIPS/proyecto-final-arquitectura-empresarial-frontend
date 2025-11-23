@@ -1,0 +1,229 @@
+/* ==========================================================================
+   0) DESIGN SYSTEM TOKENS (Light)
+   ========================================================================== */
+:root{
+  /* Spacing (base 0.25rem) */
+  --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem;
+  --space-5:1.25rem; --space-6:1.5rem; --space-8:2rem; --space-10:2.5rem;
+
+  /* Radius */
+  --radius-sm:.5rem; --radius-md:.75rem; --radius-lg:1rem; --radius-xl:1.25rem;
+
+  /* Shadows (hierarchy) */
+  --shadow-sm:0 2px 6px rgba(2,6,23,.06);
+  --shadow-md:0 6px 14px rgba(2,6,23,.08);
+  --shadow-lg:0 12px 28px rgba(2,6,23,.10);
+  --shadow-xl:0 30px 50px rgba(2,6,23,.12);
+
+  /* Type (Major Third 1.125) */
+  --ff: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --fs-0:.889rem; --fs-1:1rem; --fs-2:1.125rem; --fs-3:1.266rem; --fs-4:1.424rem; --fs-5:1.602rem;
+  --lh-body:1.6; --lh-head:1.2;
+
+  /* Motion */
+  --dur-1:120ms; --dur-2:180ms; --dur-3:260ms; --dur-4:380ms;
+  --ease-entrance:cubic-bezier(.22,1,.36,1);
+  --ease-hover:cubic-bezier(.16,1,.3,1);
+
+  /* Accessible focus ring */
+  --ring:0 0 0 3px rgba(37,99,235,.22);
+
+  /* Palette (light) */
+  --bg:#ffffff;
+  --bg-accent:#f8fafc;         /* sutil gris */
+  --panel:#ffffff;              /* cards, inputs */
+  --panel-2:#f9fafb;           /* gradiente inferior suave */
+  --panel-alt:#f8fafc;         /* placeholder-shown / skeleton */
+
+  --text:#0f172a;               /* slate-900 */
+  --text-muted:#475569;         /* slate-600 */
+
+  --primary:#2563eb; --primary-600:#1d4ed8; --primary-700:#1e40af;
+  --success:#059669; --danger:#dc2626; --warning:#ca8a04;
+
+  --border:#e5e7eb;             /* borde general */
+}
+
+/* ==========================================================================
+   1) BASE / RESET
+   ========================================================================== */
+*{ box-sizing:border-box }
+html,body,#root{ height:100% }
+
+html,body{
+  margin:0; font-family:var(--ff); color:var(--text); line-height:var(--lh-body);
+  background:
+    radial-gradient(900px 600px at -10% -10%, #eef2ff 0%, transparent 55%),
+    radial-gradient(900px 600px at 110% 110%, #ecfdf5 0%, transparent 55%),
+    var(--bg);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition:none !important }
+}
+
+/* ==========================================================================
+   2) UTILITIES
+   ========================================================================== */
+.u-container{ width:min(1120px, 90vw); margin-inline:auto }
+.u-sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0 }
+.u-ring:focus-visible{ outline:none; box-shadow:var(--ring) }
+.u-elev-sm{ box-shadow:var(--shadow-sm) } .u-elev-md{ box-shadow:var(--shadow-md) }
+.u-elev-lg{ box-shadow:var(--shadow-lg) } .u-elev-xl{ box-shadow:var(--shadow-xl) }
+
+/* Tap targets ≥44px en elementos interactivos */
+:where(button,[role="button"],a){ min-height:44px }
+
+/* ==========================================================================
+   3) LAYOUT
+   ========================================================================== */
+.container{ min-height:100%; display:flex; flex-direction:column }
+main{ flex:1 }
+
+/* Header claro con glass suave */
+header{
+  position:sticky; top:0; z-index:50;
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.75));
+  backdrop-filter: saturate(130%) blur(8px);
+  border-bottom:1px solid var(--border);
+  padding: var(--space-4) 0;
+}
+header .inner{ display:flex; align-items:center; justify-content:space-between; gap:var(--space-4) }
+header h1{ margin:0; font-size:var(--fs-3); letter-spacing:.2px }
+header a{ color:var(--primary-600); text-decoration:none; font-size:var(--fs-0) }
+header a:hover{ color:var(--primary-700); text-decoration:underline }
+
+/* Secciones del main */
+main .section{ margin-block: var(--space-6) }
+
+/* ==========================================================================
+   4) CARD (base + hero)
+   ========================================================================== */
+.card{
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border:1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
+  transition: transform var(--dur-2) var(--ease-hover), box-shadow var(--dur-2) var(--ease-hover), border-color var(--dur-2) var(--ease-hover);
+}
+.card:hover{ transform: translateY(-2px); box-shadow: var(--shadow-xl) }
+
+.card--hero{
+  padding: var(--space-8);
+  animation: fadeSlideIn var(--dur-4) var(--ease-entrance) both;
+}
+
+/* ==========================================================================
+   5) HOME / MODULES
+   ========================================================================== */
+.home-hero h2{
+  margin:0 0 var(--space-2) 0; font-size:var(--fs-5); line-height:var(--lh-head);
+}
+.home-hero .muted{ color: var(--text-muted) }
+
+.modules-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+/* Tarjeta por módulo */
+.module-card{
+  display:flex; flex-direction:column; gap:var(--space-3);
+  min-height:150px; position:relative; overflow:hidden;
+}
+.module-card h3{ margin:0; font-size:var(--fs-3) }
+.cell-sub{ color:var(--text-muted); font-size:var(--fs-1) }
+
+.module-card::after{ /* halo inferior muy sutil */
+  content:""; position:absolute; inset:auto -10% 0 -10%; height:40%;
+  background: radial-gradient(60% 120% at 50% 100%, rgba(37,99,235,.08), transparent 70%);
+  pointer-events:none;
+}
+
+/* Alinea la acción (botón) al fondo de la tarjeta para consistencia visual */
+.module-card{ display:flex; flex-direction:column }
+.module-card .meta{ display:block }
+.module-card .actions{
+  margin-top:auto;
+  display:flex;
+  justify-content:flex-end;
+  gap: var(--space-3); /* separa los botones */
+}
+
+
+/* ==========================================================================
+   6) BUTTONS / LINKS
+   ========================================================================== */
+.button-link,
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+  min-height:44px; padding:.65rem .9rem;
+  border-radius: var(--radius-md);
+  text-decoration:none; font-weight:800; font-size:var(--fs-1); letter-spacing:.2px;
+  border:1px solid transparent;
+  transition: transform var(--dur-2) var(--ease-hover), filter var(--dur-2) var(--ease-hover), background-position var(--dur-3) var(--ease-entrance);
+}
+.btn--primary, .button-link{
+  color:#fff;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%);
+  background-size: 200% 200%;
+  box-shadow: 0 12px 20px rgba(37,99,235,.18), 0 3px 8px rgba(37,99,235,.10), inset 0 1px 0 rgba(255,255,255,.28);
+}
+.button-link:hover, .btn--primary:hover{ transform:translateY(-2px); filter:brightness(1.05); background-position:100% 0 }
+.button-link:active, .btn--primary:active{ transform:translateY(0) scale(.995) }
+.button-link:focus-visible{ box-shadow: var(--ring) }
+
+/* Variante secundaria clara */
+.btn--secondary{
+  color:var(--text); background:#fff; border:1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.btn--secondary:hover{ border-color: var(--primary-600); color: var(--primary) }
+
+/* ==========================================================================
+   7) FORM PARTS (si los usas en esta vista o futuras)
+   ========================================================================== */
+input[type="text"], input[type="email"], input[type="number"], input[type="datetime-local"], textarea{
+  width:100%;
+  padding:.7rem .9rem;
+  background:#fff; color:var(--text);
+  border:1px solid var(--border); border-radius: var(--radius-md);
+  outline:none; transition: border-color var(--dur-2) var(--ease-hover), box-shadow var(--dur-2) var(--ease-hover), background var(--dur-2) var(--ease-hover);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
+}
+input::placeholder, textarea::placeholder{ color:#94a3b8 }
+input:focus-visible, textarea:focus-visible{ border-color: var(--primary-600); box-shadow: var(--ring) }
+input:invalid{ border-color:#f87171 }
+input:placeholder-shown{ background: var(--panel-alt) }
+
+/* ==========================================================================
+   8) TABLE (coherente con tema claro)
+   ========================================================================== */
+table.table{ width:100%; border-collapse:separate; border-spacing:0; background:#fff }
+.table th, .table td{ padding:.75rem .9rem; text-align:left; vertical-align:middle }
+.table thead th{
+  font-weight:700; color:#0f172a; border-bottom:1px solid var(--border);
+  background: linear-gradient(180deg, rgba(2,6,23,.04), rgba(2,6,23,.02));
+}
+.table tbody tr + tr{ border-top:1px solid var(--border) }
+.table tbody tr:hover{ background:#f8fafc }
+
+/* ==========================================================================
+   9) FOOTER
+   ========================================================================== */
+footer{ text-align:center; padding: var(--space-6) 0; color: var(--text-muted) }
+
+/* ==========================================================================
+   10) ACCESSIBILITY & MICROINTERACTIONS
+   ========================================================================== */
+.skip-link{
+  position:absolute; left:1rem; top:.5rem; transform:translateY(-200%);
+  background: var(--primary-700); color:#fff; padding:.5rem .75rem; border-radius: var(--radius-sm);
+  transition: transform var(--dur-2) var(--ease-hover);
+}
+.skip-link:focus{ transform:translateY(0) }
+
+@keyframes fadeSlideIn{ from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:translateY(0)} }
